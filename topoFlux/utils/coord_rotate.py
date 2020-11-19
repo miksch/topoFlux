@@ -47,7 +47,7 @@ def double_rotate(df, u, v, w):
     cos_phi = np.cos(phi)
     sin_phi = np.sin(phi)
 
-    df[f"{u}_rot"] = u_temp * cos_phi + rot1_mean[]
+    #df[f"{u}_rot"] = u_temp * cos_phi
 
     # Store rotations in original dataframe along with theta and phi (also returned in function)
 

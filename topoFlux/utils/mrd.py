@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from numba import jit
+import cupy as cp
 
 def find_pow2(n):
     """
@@ -32,7 +33,7 @@ def mrd(a, b, M=None):
     Args:
         a (array) : 1D array for timeseries "a"
         b (array) : 1D array for timeseries "b"
-        M (int) : Number of points in the MRD (2^M points)
+        M (int) : (optional) Number of points in the MRD (2^M points)
 
     Returns:
         D (array) : Decomposition array
@@ -85,6 +86,72 @@ def mrd(a, b, M=None):
         b = np.array(arr_list_b).flatten()
 
     return T, np.flip(D)
+
+
+def mrd_gpu(a, b, M=None):
+    """
+    Calculate the Multiresolution Decomposition for a given timeseries of two variables
+    Howell and Mahrt, 1997; Vickers and Mahrt, 2003; Vickers and Mahrt 2006
+
+    Args:
+        a (array) : 1D array for timeseries "a"
+        b (array) : 1D array for timeseries "b"
+        M (int) : (optional) Number of points in the MRD (2^M points)
+
+    Returns:
+        D (array) : Decomposition array
+        T (array) : Time array
+    """
+
+    if M is None:
+
+        N = a.shape[0]
+        M = find_pow2(N)
+
+    # Ensure that both timeseries are of length 2**M
+    a = cp.array(a[:2**M])
+    b = cp.array(b[:2**M])
+
+    # Pre-allocate time and decomposition arrays
+    T = cp.zeros(M)
+    D = cp.zeros(M)
+
+    # Loop through M -> 0 values (reversed)
+    for m in np.flip(np.arange(M + 1)):
+
+        ms = M - m  # M - m in Vickers and Mahrt 2003
+        L = 2 ** ms 
+        sum_ab = 0.
+
+        # Split arrays into m equal slices
+        arr_list_a = cp.split(a, L)
+        arr_list_b = cp.split(b, L)
+
+        for i, (temp_a, temp_b) in enumerate(zip(arr_list_a, arr_list_b)):
+
+            # Get the mean for each segment, then calculate cumulative sum
+            mean_a = cp.nanmean(temp_a)
+            mean_b = cp.nanmean(temp_b)
+            sum_ab += cp.sum(mean_a * mean_b)
+
+            # Subtract mean if number of segments < number of values
+            if arr_list_a[0].shape[0] > 1:
+                arr_list_a[i] = temp_a - mean_a
+                arr_list_b[i] = temp_b - mean_b
+
+        # Write out decomposition and time values (ignoring m = M)
+        if ms > 0:
+            T[ms - 1] = L
+            D[ms - 1] = sum_ab * (1 / 2 ** (ms))
+
+        # Write out new means to original arrays
+        a = cp.array(arr_list_a).flatten()
+        b = cp.array(arr_list_b).flatten()
+
+    return cp.asnumpy(T), cp.asnumpy(cp.flip(D))
+
+
+def mrd_numba(a, b, dt):
 
 
 

@@ -140,3 +140,5 @@ cython_debug/
 # Matlab stuff
 opt_SPF/
 UTESpac/
+
+dask-worker-space/
