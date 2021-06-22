@@ -153,6 +153,8 @@ def mrd_gpu(a, b, M=None):
 
 def mrd_numba(a, b, dt):
 
+    return
+
 
 
 def mrd_tau(a, b, dt, M=None, interp=False):
